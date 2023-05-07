@@ -64,11 +64,12 @@ function calculation_planet_list_page() {
     array('data' => 'ID', 'field' => 'id'),
     array('data' => 'Код', 'field' => 'code'),
     array('data' => 'Имя', 'field' => 'name'),
+    array('data' => 'Налог', 'field' => 'taxes'),
     array('data' => 'Действия'),
   );
 
   $query = db_select('planets', 'p')
-    ->fields('p', array('id', 'code', 'name'))
+    ->fields('p', array('id', 'code', 'name', 'taxes'))
     ->orderBy('id', 'ASC');
   $result = $query->execute();
 
@@ -79,6 +80,7 @@ function calculation_planet_list_page() {
       $row->id,
       $row->code,
       $row->name,
+      $row->taxes,
       l(t('Редактировать'), $edit_url),
     );
   }
@@ -94,7 +96,7 @@ function calculation_planet_list_page() {
 function calculation_planet_edit_page($planet_id) {
   // Загрузка данных планеты по ID из базы данных.
   $planet = db_select('planets', 'p')
-    ->fields('p', array('id', 'code', 'name'))
+    ->fields('p', array('id', 'code', 'name', 'taxes'))
     ->condition('id', $planet_id)
     ->execute()
     ->fetchAssoc();
@@ -187,6 +189,7 @@ function calculation_form($form, &$form_state) {
       '#title' => t('Tax номер покупателя'),
       '#description' => t('Введите Tax номер покупателя в формате PDXXXXXXXXX где PD это код планеты, а X это число'),
       '#required' => TRUE,
+      '#element_validate' => array('calculation_validate_tax_number'),
     ),
     'submit' => array(
       '#type' => 'submit',
