@@ -1,0 +1,408 @@
+<?php
+
+/**
+ * @file
+ * Provide functions and hooks for calculations.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function calculation_menu() {
+  $items = array();
+
+  // Страница списка планет.
+  $items['admin/planets'] = array(
+    'title' => 'Планеты',
+    'page callback' => 'calculation_planet_list_page',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  // Страница расчета цены продукта.
+  $items['calculation'] = array(
+    'title' => 'Форма расчета цены продукта',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('calculation_form'),
+    'access arguments' => array('access content'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // Страница редактирования планеты.
+  $items['admin/planet/edit/%'] = array(
+    'title' => 'Редактировать планету',
+    'page callback' => 'calculation_planet_edit_page',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_CALLBACK,
+    'page arguments' => array(3),
+  );
+
+  // Страница списка продуктов.
+  $items['admin/products'] = array(
+    'title' => 'Продукты',
+    'page callback' => 'calculation_product_list_page',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // Страница редактирования продукта.
+  $items['admin/product/edit/%'] = array(
+    'title' => 'Редактировать продукт',
+    'page callback' => 'calculation_product_edit_page',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_CALLBACK,
+    'page arguments' => array(3),
+  );
+
+  return $items;
+}
+
+/**
+ * Страница списка планет.
+ */
+function calculation_planet_list_page() {
+  $header = array(
+    array('data' => 'ID', 'field' => 'id'),
+    array('data' => 'Код', 'field' => 'code'),
+    array('data' => 'Имя', 'field' => 'name'),
+    array('data' => 'Действия'),
+  );
+
+  $query = db_select('planets', 'p')
+    ->fields('p', array('id', 'code', 'name'))
+    ->orderBy('id', 'ASC');
+  $result = $query->execute();
+
+  $rows = array();
+  foreach ($result as $row) {
+    $edit_url = url('admin/planet/edit/' . $row->id);
+    $rows[] = array(
+      $row->id,
+      $row->code,
+      $row->name,
+      l(t('Редактировать'), $edit_url),
+    );
+  }
+
+  $output = theme('table', array('header' => $header, 'rows' => $rows));
+
+  return $output;
+}
+
+/**
+ * Страница редактирования планеты.
+ */
+function calculation_planet_edit_page($planet_id) {
+  // Загрузка данных планеты по ID из базы данных.
+  $planet = db_select('planets', 'p')
+    ->fields('p', array('id', 'code', 'name'))
+    ->condition('id', $planet_id)
+    ->execute()
+    ->fetchAssoc();
+
+  if (!$planet) {
+    drupal_set_message(t('Планета не найдена.'), 'error');
+    return;
+  }
+
+  $form = drupal_get_form('calculation_planet_edit_form', $planet);
+  return $form;
+}
+
+/**
+ * Страница списка продуктов.
+ */
+function calculation_product_list_page() {
+  $header = array(
+    array('data' => 'ID', 'field' => 'id'),
+    array('data' => 'Имя', 'field' => 'name'),
+    array('data' => 'Цена', 'field' => 'price'),
+    array('data' => 'Валюта', 'field' => 'currency'),
+    array('data' => 'Действия'),
+  );
+
+  $query = db_select('products', 'p')
+    ->fields('p', array('id', 'name', 'price', 'currency'))
+    ->orderBy('id', 'ASC');
+  $result = $query->execute();
+
+  $rows = array();
+  foreach ($result as $row) {
+    $edit_url = url('admin/product/edit/' . $row->id);
+    $rows[] = array(
+      $row->id,
+      $row->name,
+      $row->price,
+      $row->currency,
+      l(t('Редактировать'), $edit_url),
+    );
+  }
+
+  $output = theme('table', array('header' => $header, 'rows' => $rows));
+
+  return $output;
+}
+
+/**
+ * Страница редактирования продукта.
+ */
+function calculation_product_edit_page($id) {
+  $product = db_select('products', 'p')
+    ->fields('p')
+    ->condition('id', $id)
+    ->execute()
+    ->fetchAssoc();
+
+  if ($product) {
+    return drupal_get_form('calculation_product_edit_form', $product);
+  }
+  else {
+    drupal_set_message(t('Продукт не найден'), 'error');
+    return;
+  }
+}
+
+/**
+ * Функция отображает форму для ввода данных для расчета цены продукта.
+ */
+function calculation_form($form, &$form_state) {
+  // Получаем список продуктов из таблицы products.
+  $query = db_select('products', 'p');
+  $query->fields('p', array('id', 'name'));
+  $result = $query->execute();
+  $products = array();
+  foreach ($result as $row) {
+    $products[$row->id] = $row->name;
+  }
+
+  // Создаем форму.
+  $form = array(
+    'product' => array(
+      '#type' => 'select',
+      '#title' => t('Продукт'),
+      '#options' => $products,
+      '#required' => TRUE,
+    ),
+    'tax_number' => array(
+      '#type' => 'textfield',
+      '#title' => t('Tax номер покупателя'),
+      '#description' => t('Введите Tax номер покупателя в формате PDXXXXXXXXX где PD это код планеты, а X это число'),
+      '#required' => TRUE,
+    ),
+    'submit' => array(
+      '#type' => 'submit',
+      '#value' => t('Рассчитать'),
+    ),
+  );
+
+  return $form;
+}
+
+/**
+ * Form validation: Проверка Tax номера покупателя.
+ */
+function calculation_validate_tax_number($form, &$form_state) {
+  $tax_number = $form_state['values']['tax_number'];
+
+  // Получение первых двух символов из tax номера.
+  $country_code = substr($tax_number, 0, 2);
+
+  // Проверка страны покупателя по таблице planets.
+  $query = db_select('planets', 'p');
+  $query->fields('p', array('name'))
+    ->condition('p.code', $country_code)
+    ->range(0, 1);
+  $country_name = $query->execute()->fetchField();
+
+  if (!$country_name) {
+    form_set_error('tax_number', t('Неизвестный tax номер или страна покупателя.'));
+  }
+  else {
+    $form_state['country_name'] = $country_name;
+  }
+}
+
+/**
+ * Form submit: Обработка отправки формы.
+ */
+function calculation_form_submit($form, &$form_state) {
+  // Получение выбранного продукта из таблицы products.
+  $product_id = $form_state['values']['product'];
+  $product = db_select('products', 'p')
+    ->fields('p', array('name', 'price', 'currency'))
+    ->condition('p.id', $product_id)
+    ->range(0, 1)
+    ->execute()
+    ->fetchAssoc();
+
+  // Получение кода страны покупателя из таблицы planets.
+  $tax_number = $form_state['values']['tax_number'];
+  $country_code = substr($tax_number, 0, 2);
+  $country = db_select('planets', 'p')
+    ->fields('p', array('code', 'name', 'taxes'))
+    ->condition('p.code', $country_code)
+    ->range(0, 1)
+    ->execute()
+    ->fetchAssoc();
+
+  if (!$product || !$country) {
+    drupal_set_message(t('Ошибка при расчете цены продукта.'), 'error');
+    return;
+  }
+
+  $product_name = $product['name'];
+  $product_price = $product['price'];
+  $product_currency = $product['currency'];
+
+  $country_name = $country['name'];
+  $country_taxes = $country['taxes'];
+
+  // Расчет итоговой стоимости продукта.
+  $total_price = $product_price * (1 + $country_taxes);
+
+  drupal_set_message(t('Цена @product_name для покупателя из страны @country_name составляет @total_price @product_currency.',
+    array(
+      '@product_name' => $product_name,
+      '@country_name' => $country_name,
+      '@total_price' => $total_price,
+      '@product_currency' => $product_currency,
+    )
+  ));
+}
+
+/**
+ * Форма редактирования планеты.
+ */
+function calculation_planet_edit_form($form, &$form_state, $planet = NULL) {
+  $form['id'] = array(
+    '#type' => 'value',
+    '#value' => isset($planet['id']) ? $planet['id'] : '',
+  );
+
+  $form['code'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Код',
+    '#required' => TRUE,
+    '#default_value' => isset($planet['code']) ? $planet['code'] : '',
+  );
+
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Имя',
+    '#required' => TRUE,
+    '#default_value' => isset($planet['name']) ? $planet['name'] : '',
+  );
+
+  $form['taxes'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Налоги',
+    '#required' => TRUE,
+    '#default_value' => isset($planet['taxes']) ? $planet['taxes'] : '',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Сохранить',
+  );
+
+  return $form;
+}
+
+/**
+ * Обработка отправки формы редактирования планеты.
+ */
+function calculation_planet_edit_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+  $planet = array(
+    'id' => $values['id'],
+    'code' => $values['code'],
+    'name' => $values['name'],
+    'taxes' => $values['taxes'],
+  );
+
+  // Сохранение или обновление планеты в базе данных.
+  if (empty($planet['id'])) {
+    db_insert('planets')
+      ->fields($planet)
+      ->execute();
+    drupal_set_message(t('Планета успешно создана.'));
+  }
+  else {
+    db_update('planets')
+      ->fields($planet)
+      ->condition('id', $planet['id'])
+      ->execute();
+    drupal_set_message(t('Планета успешно обновлена.'));
+  }
+
+  // Перенаправление на страницу списка планет.
+  $form_state['redirect'] = 'admin/planets';
+}
+
+/**
+ * Форма редактирования продукта.
+ */
+function calculation_product_edit_form($form, &$form_state, $product = NULL) {
+  $form['id'] = array(
+    '#type' => 'value',
+    '#value' => isset($product['id']) ? $product['id'] : '',
+  );
+
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Имя',
+    '#required' => TRUE,
+    '#default_value' => isset($product['name']) ? $product['name'] : '',
+  );
+
+  $form['price'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Цена',
+    '#required' => TRUE,
+    '#default_value' => isset($product['price']) ? $product['price'] : '',
+  );
+
+  $form['currency'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Валюта',
+    '#required' => TRUE,
+    '#default_value' => isset($product['currency']) ? $product['currency'] : '',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Сохранить',
+  );
+
+  return $form;
+}
+
+/**
+ * Обработка отправки формы редактирования продукта.
+ */
+function calculation_product_edit_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+  $product = array(
+    'id' => $values['id'],
+    'name' => $values['name'],
+    'price' => $values['price'],
+    'currency' => $values['currency'],
+  );
+
+  // Сохранение или обновление продукта в базе данных.
+  if (empty($product['id'])) {
+    db_insert('products')
+      ->fields($product)
+      ->execute();
+    drupal_set_message(t('Продукт успешно создан.'));
+  }
+  else {
+    db_update('products')
+      ->fields($product)
+      ->condition('id', $product['id'])
+      ->execute();
+    drupal_set_message(t('Продукт успешно обновлен.'));
+  }
+
+  // Перенаправление на страницу списка продуктов.
+  $form_state['redirect'] = 'admin/products';
+}

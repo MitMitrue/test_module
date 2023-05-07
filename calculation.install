@@ -1,0 +1,105 @@
+<?php
+
+/**
+ * @file
+ * Provide functions install for calculations.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function calculation_install() {
+  // Создание таблицы 'products'.
+  $schema['products'] = array(
+    'description' => 'Таблица продуктов',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Уникальный идентификатор продукта',
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Название продукта',
+      ),
+      'price' => array(
+        'type' => 'float',
+        'not null' => TRUE,
+        'description' => 'Цена продукта',
+      ),
+      'currency' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Валюта продукта',
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['planets'] = array(
+    'description' => 'Таблица планет',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Уникальный идентификатор планеты',
+      ),
+      'code' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Код планеты',
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Название планеты',
+      ),
+      'taxes' => array(
+        'type' => 'float',
+        'description' => 'Налоги планеты',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+  // Создание таблицы в базе данных.
+  db_create_table('products', $schema['products']);
+  db_create_table('planets', $schema['planets']);
+
+  // Наполнение таблицы products начальными данными (пример).
+  $products = array(
+    array('name' => 'Наушники', 'price' => 100.00, 'currency' => 'евро'),
+    array(
+      'name' => 'Чехол для телефона',
+      'price' => '20.00',
+      'currency' => 'евро',
+    ),
+  );
+
+  foreach ($products as $product) {
+    db_insert('products')
+      ->fields($product)
+      ->execute();
+  }
+  // Заполнение таблицы planets данными.
+  $planets = array(
+    array('code' => 'MR', 'name' => 'Марс', 'taxes' => 0.19),
+    array('code' => 'ST', 'name' => 'Сатурн', 'taxes' => 0.22),
+    array('code' => 'JP', 'name' => 'Юпитер', 'taxes' => 0.24),
+  );
+
+  foreach ($planets as $planet) {
+    db_insert('planets')
+      ->fields($planet)
+      ->execute();
+  }
+
+}

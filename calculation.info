@@ -1,0 +1,4 @@
+name = Calculation
+description = Модуль для расчета цены продукта и управления списком планет и продуктов. Написанный полностью на запросах ChatGPT.
+core = 7.x
+package = Custom
